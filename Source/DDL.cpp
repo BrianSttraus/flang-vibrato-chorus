@@ -80,7 +80,8 @@ void Ddl::delayLineProcessor(float* sample)
     float yn_1 = mDelayBuffer[mReadIndex_1];
     
     //allpass interpolation
-    interp = 0.996*(yn-interp)+yn_1;
+    float allpassCoeff = (1.0-mDelayInSamples)/(1.0+mDelayInSamples);
+    interp = allpassCoeff*(yn-interp)+yn_1;
     
     if (mDelayInSamples==0)
         yn = xn;
