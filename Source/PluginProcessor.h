@@ -59,14 +59,16 @@ public:
 
 private:
     enum MODTYPE{Flanger,Vibrato,Chorus};
-    void setModType();
-    float setDelayOffset(float lfoValue);
     AudioProcessorValueTreeState parameters;
-    WTOsc mLFO;
-    Ddl mDL;
+    void setModType(); 
+    float setDelayOffset(float lfoValue);
+    
+    WTOsc mLFO; //lfo
+    Ddl mDLL, mDLR; //left and right delay lines
     float mMinDelay, mMaxDelay;
     
-    std::atomic<float>* depthSliderValue, *rateSliderValue, *feedbackSliderValue, *delaySliderValue;
+    std::atomic<float>* depthSliderValue, *rateSliderValue, *feedbackSliderValue;
+    std::atomic<float>* delaySliderValue, *mixSliderValue, *gainSliderValue, *widthSliderValue;
     std::atomic<float>* modTypeValue, *lfoTypeValue;
     
     //==============================================================================

@@ -9,8 +9,8 @@
 */
 
 #pragma once
-enum OSCTYPE{SINE,SAW,TRIANGLE,SQUARE};
-
+enum OSCTYPE{TRIANGLE,SINE,SAW,SQUARE};
+//Unipolar wavetable Oscillator for use as LFO
 class WTOsc {
     float mSinTable[1024];
     float mSawTable[1024];
@@ -18,15 +18,15 @@ class WTOsc {
     float mSqTable[1024];
     
     float mIncr;
-    float mReadIndex{0};
+    float mReadIndex,mPhaseReadindex;
     
     int lfoType{0};
 public:
     WTOsc();
     ~WTOsc();
     
-    void updateInc(float freq, float srate){mIncr = 1024.0f * freq / srate;};
-    void resetIndex(){mReadIndex=0.0;};
-    void oscillate(float* value);
+    void updateInc(float freq, float srate){mIncr = 1024.0f * freq / srate;}; //calculates read increment of table
+    void resetIndex(){mReadIndex=0.0; mPhaseReadindex=32.0;}; //read offset of 32 samples
+    void oscillate(float* value,float* offsetValue);
     void setOscType(int type){lfoType = type;};
 };

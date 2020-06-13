@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="l1VtMQ" name="ModDelay" projectType="audioplug" jucerVersion="5.4.7">
+<JUCERPROJECT id="l1VtMQ" name="ModDelay" projectType="audioplug" jucerVersion="5.4.7"
+              pluginFormats="buildAU">
   <MAINGROUP id="wMXIL4" name="ModDelay">
     <GROUP id="{AE6826B2-123F-E8EE-7DB4-F1BCB9AF4731}" name="Source">
       <FILE id="bIu5Y0" name="PluginProcessor.cpp" compile="1" resource="0"

@@ -22,13 +22,13 @@ Ddl::Ddl()
     mDelayBufferSize = 0;
     mReadindex = 0;
     mWriteIndex = 0;
-    mDelayTimeSmoothed = 0;
     mDelayBuffer = nullptr;
     interp = 0.0;
 }
 
 Ddl::~Ddl()
 {
+    //relese memory allocated buffer
    if(mDelayBuffer)
        delete [] mDelayBuffer;
 }
@@ -36,6 +36,7 @@ Ddl::~Ddl()
 void Ddl::setSize(double srate)
 {
     mSampleRate =  (float) srate;
+    //Set delay buffer size and allocate memory. Fixed maximum of 2 sec
     mDelayBufferSize = int(2.0*mSampleRate);
     
     if(mDelayBuffer)
@@ -46,16 +47,18 @@ void Ddl::setSize(double srate)
 
 void Ddl::resetDelay()
 {
+    //set delay samples to 0
     if(mDelayBuffer)
         std::memset(mDelayBuffer, 0,mDelayBufferSize*sizeof(float));
+    //reset interpolation value
     interp = 0;
 }
 
 void Ddl::calculateVariables()
 {
+    //calculate variables from raw percentages and delay in msec
     mFeedback = feedbackRawValue/100.0;
     mWetLevel = wetRawValue/100.0;
-    mDelayTimeSmoothed = delayMs;
     mDelayInSamples = delayMs * mSampleRate / 1000.0;
     
     //set read index and wrap around circular buffer
@@ -72,14 +75,15 @@ void Ddl::delayLineProcessor(float* sample)
     //if delay < 1 sample, interpolate between x and x-1
     if(mReadindex == mWriteIndex && mDelayInSamples < 1.0)
         yn = xn;
-    
+    //get pointer to previous sample for interpolation
     int mReadIndex_1 = mReadindex - 1;
-    if(mReadIndex_1 < 0)
+    if(mReadIndex_1 < 0) //wrap buffer
         mReadIndex_1 = mDelayBufferSize-1;
         
     float yn_1 = mDelayBuffer[mReadIndex_1];
     
-    //allpass interpolation
+    //first-order allpass interpolation
+    //η * [x(n) - y(n-1)] + x(n-1)
     float allpassCoeff = (1.0-mDelayInSamples)/(1.0+mDelayInSamples);
     interp = allpassCoeff*(yn-interp)+yn_1;
     
@@ -91,6 +95,7 @@ void Ddl::delayLineProcessor(float* sample)
 
     mDelayBuffer[mWriteIndex] = xn + mFeedback*yn;
 
+    //update output sample from parameter value
     *sample = mWetLevel*yn + (1.0-mWetLevel)*xn;
     
     

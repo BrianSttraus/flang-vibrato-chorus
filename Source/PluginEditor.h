@@ -16,7 +16,8 @@
 //==============================================================================
 /**
 */
-class ModDelayAudioProcessorEditor  : public AudioProcessorEditor
+class ModDelayAudioProcessorEditor  : public AudioProcessorEditor,
+                                      public ComboBox::Listener
 {
 public:
     ModDelayAudioProcessorEditor (ModDelayAudioProcessor&, AudioProcessorValueTreeState&);
@@ -25,18 +26,23 @@ public:
     //==============================================================================
     void paint (Graphics&) override;
     void resized() override;
-
+    void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
 private:
     typedef AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
     typedef AudioProcessorValueTreeState::ComboBoxAttachment ComboBoxAttachment;
     
-    Slider depthSlider, rateSlider, feedbackSlider;
+    Slider depthSlider, rateSlider, feedbackSlider, mixSlider, delaySlider, gainSlider,widthSlider;
+    Label depthLabel, rateLabel, feedbackLabel, mixLabel, delayLabel, gainLabel, widthLabel;
     ComboBox effectChoice, lfoChoice;
-    Label depthLabel, rateLabel, feedbackLabel;
+    
     
     std::unique_ptr<SliderAttachment> depthAttachment;
     std::unique_ptr<SliderAttachment> rateAttachment;
     std::unique_ptr<SliderAttachment> feedbackAttachment;
+    std::unique_ptr<SliderAttachment> delayAttachment;
+    std::unique_ptr<SliderAttachment> mixAttachment;
+    std::unique_ptr<SliderAttachment> gainAttachment;
+    std::unique_ptr<SliderAttachment> widthAttachment;
 
     std::unique_ptr<ComboBoxAttachment> effectAttachment;
     std::unique_ptr<ComboBoxAttachment> lfoAttachment;

@@ -23,6 +23,7 @@ ModDelayAudioProcessor::ModDelayAudioProcessor()
                      #endif
                        ), parameters(*this, nullptr, "PARAMS",
                                      {
+                           //add valuetree parameters to attach to sliders
                            std::make_unique<AudioParameterFloat>("depth",
                                                                  "Depth",
                                                                  0.0,
@@ -30,11 +31,31 @@ ModDelayAudioProcessor::ModDelayAudioProcessor()
                                                                  50.0),
                            std::make_unique<AudioParameterFloat>("rate",
                                                                  "Rate",
-                                                                 0.02,
+                                                                 0,
                                                                  5,
-                                                                 0.18),
+                                                                 0.6),
                            std::make_unique<AudioParameterFloat>("feedback",
                                                                  "FeedBack",
+                                                                 0.0,
+                                                                 100.0,
+                                                                 0.0),
+                           std::make_unique<AudioParameterFloat>("mix",
+                                                                 "Mix",
+                                                                 0.0,
+                                                                 100.0,
+                                                                 50.0),
+                           std::make_unique<AudioParameterFloat>("delay",
+                                                                 "Delay",
+                                                                 0.0,
+                                                                 7.0,
+                                                                 0.8),
+                           std::make_unique<AudioParameterFloat>("gain",
+                                                                 "Gain",
+                                                                 -10.0,
+                                                                 6.0,
+                                                                 0.0),
+                           std::make_unique<AudioParameterFloat>("width",
+                                                                 "Width",
                                                                  0.0,
                                                                  100.0,
                                                                  0.0),
@@ -52,12 +73,17 @@ ModDelayAudioProcessor::ModDelayAudioProcessor()
                        })
 #endif
 {
+    //get raw parameters. Dereference later to use values
     depthSliderValue = parameters.getRawParameterValue("depth");
     rateSliderValue = parameters.getRawParameterValue("rate");
     feedbackSliderValue = parameters.getRawParameterValue("feedback");
+    mixSliderValue = parameters.getRawParameterValue("mix");
+    gainSliderValue = parameters.getRawParameterValue("gain");
+    widthSliderValue = parameters.getRawParameterValue("width");
+    delaySliderValue = parameters.getRawParameterValue("delay");
     modTypeValue = parameters.getRawParameterValue("modulation");
     lfoTypeValue = parameters.getRawParameterValue("lfo");
-    
+    //min and max values of modulation range
     mMinDelay = 0.0;
     mMaxDelay = 0.0;
     
@@ -128,47 +154,63 @@ const String ModDelayAudioProcessor::getProgramName (int index)
 void ModDelayAudioProcessor::changeProgramName (int index, const String& newName)
 {
 }
+
 void ModDelayAudioProcessor::setModType()
 {
+    //set variables to use for each type of effect
+    //delay slider sets start of modulation up to a fixed max
     switch ((int)*modTypeValue) {
         case Flanger:
-            mMinDelay = 0.1;
-            mMaxDelay = 7.0;
-            mDL.wetRawValue = 90.0;
-            mDL.feedbackRawValue = *feedbackSliderValue;
+            mMinDelay = *delaySliderValue;
+            mMaxDelay = 10.0;
+            mDLL.feedbackRawValue = *feedbackSliderValue; //slider controls raw percentage value inside delay line
+            mDLR.feedbackRawValue = *feedbackSliderValue;
             break;
         case Vibrato:
-            mMinDelay = 0.0;
-            mMaxDelay = 7.0;
-            mDL.wetRawValue = 100.0;
-            mDL.feedbackRawValue = 0.0;
+            mMinDelay = *delaySliderValue;
+            mMaxDelay = 10.0;
+            mDLL.feedbackRawValue = 0.0; //no feedback for vibrato!
+            mDLR.feedbackRawValue = 0.0;
             break;
         case Chorus:
-            mMinDelay = 5.0;
+            mMinDelay = *delaySliderValue;
             mMaxDelay = 30.0;
-            mDL.feedbackRawValue = *feedbackSliderValue;
-            mDL.wetRawValue = 50.0;
+            mDLL.feedbackRawValue = 0.0; //no feedback for chorus!
+            mDLR.feedbackRawValue = 0.0;
             break;
         default:
+            //default Flanger
             mMinDelay = 0.1;
             mMaxDelay = 7.0;
-            mDL.wetRawValue = 50.0;
-            mDL.feedbackRawValue = *feedbackSliderValue;
+            mDLL.feedbackRawValue = *feedbackSliderValue;
+            mDLR.feedbackRawValue = *feedbackSliderValue;
             break;
     }
 }
 //==============================================================================
 void ModDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    //reset read indexes of lfo
     mLFO.resetIndex();
     
-    mDL.setSize(sampleRate);
-    mDL.resetDelay();
+    //set size of left and right delay lines. Clear buffers
+    mDLL.setSize(sampleRate);
+    mDLL.resetDelay();
+    mDLR.setSize(sampleRate);
+    mDLR.resetDelay();
     
+    //set all variables depending on effect
     setModType();
+    //set frequency of lfo
     mLFO.updateInc(*rateSliderValue, (float)sampleRate);
-    mLFO.setOscType(OSCTYPE::SINE);
-    mDL.calculateVariables();
+    //select Sine or Triangle with ComboBox
+    mLFO.setOscType((int)*lfoTypeValue);
+    //set raw wet/dry value inside delay lines
+    mDLL.wetRawValue = *mixSliderValue;
+    mDLR.wetRawValue = *mixSliderValue;
+    //calculate with raw values
+    mDLL.calculateVariables();
+    mDLR.calculateVariables();
     
 }
 
@@ -204,14 +246,16 @@ bool ModDelayAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 
 float ModDelayAudioProcessor::setDelayOffset(float lfoValue)
 {
+    //get delay time in msec by mapping lfovalue to modulation range. Scale by depth
     if((int)*modTypeValue==Flanger || (int)*modTypeValue==Vibrato)
         return (*depthSliderValue/100.0)*(lfoValue*(mMaxDelay-mMinDelay)+mMinDelay);
     else if ((int)*modTypeValue==Chorus)
     {
-        float start = mMinDelay + 2.0; //fixed chorus offset
+        //for chorus offset initial delay time
+        float start = mMinDelay + 20.0; //fixed chorus offset
         return (*depthSliderValue/100.0)*(lfoValue*(mMaxDelay-mMinDelay)+start);
     }
-    return 0.0;
+    return 0;
 }
 
 void ModDelayAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
@@ -224,26 +268,51 @@ void ModDelayAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    
-    auto* inputBuffer = buffer.getReadPointer(0);
+    //get input and output buffers
+    auto* inputBuffer = buffer.getArrayOfReadPointers();
     auto* outBuffer = buffer.getArrayOfWritePointers();
     
+    //update variables in real time
     setModType();
+    mDLL.wetRawValue = *mixSliderValue;
+    mDLR.wetRawValue = *mixSliderValue;
     mLFO.updateInc(*rateSliderValue, (float)getSampleRate());
-    mLFO.setOscType(OSCTYPE::SINE);
+    mLFO.setOscType((int)*lfoTypeValue);
+    
+    
     for (int samp=0; samp<buffer.getNumSamples(); ++samp) {
-        float outSamp = inputBuffer[samp];
+        //get left and right input samples
+        float outSampL = inputBuffer[0][samp];
+        float outSampR = outSampL;
+        
+        if(totalNumInputChannels==2)
+            outSampR = inputBuffer[1][samp];
         
         float lfoValue = 0.0;
-        mLFO.oscillate(&lfoValue);
+        float lfoPhaseValue = 0.0;
+        //calculate lfo position of read pointers. Offset read pointer used for rigth channel
+        mLFO.oscillate(&lfoValue,&lfoPhaseValue);
+        //get delay in msec
         float delay = setDelayOffset(lfoValue);
+        float delayR = setDelayOffset(lfoPhaseValue);
         
-        mDL.delayMs = delay;
-        mDL.calculateVariables();
-        mDL.delayLineProcessor(&outSamp);
+        //width slider increments delay offset from 32 samples up to 256 samples
+        delayR += (((*widthSliderValue/100.0)*224.0)*1000.0)/getSampleRate();
+        //set delay amount for left and right channels
+        mDLL.delayMs = delay;
+        mDLR.delayMs = delayR;
+        //recalculate variables and process the input samples in delay line
+        mDLL.calculateVariables();
+        mDLR.calculateVariables();
+        mDLL.delayLineProcessor(&outSampL);
+        mDLR.delayLineProcessor(&outSampR);
         
-        outBuffer[0][samp] = outSamp;
-        outBuffer[1][samp] = outSamp;
+        float gain = pow(10.0, *gainSliderValue/20.0);
+        //output samples and scale by gain
+        outBuffer[0][samp] = outSampL*gain;
+        
+        if(totalNumOutputChannels==2)
+            outBuffer[1][samp] = outSampR*gain;
         
     }
         

@@ -31,6 +31,5 @@ private:
     int mDelayBufferSize;
     float mSampleRate;
     float interp;
-    float mDelayTimeSmoothed;
     
 };
